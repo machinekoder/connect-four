@@ -87,7 +87,7 @@ void closeIrDA()
 
 int openIrDA()
 {
-    fdIrDA = open("/dev/irda", O_RDWR);
+    fdIrDA = open(irdaName, O_RDWR);
 
     DEBUG(1, "Openingn irda driver!");
     if (fdIrDA < 0)

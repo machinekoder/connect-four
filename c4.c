@@ -148,7 +148,6 @@ int readUserInput()
 int main(int argc, char *argv[]) {
     int opt;
     char identifier[MAX_ID_SIZE];
-    char libname[30];
     int server = 0;
     PlayerType playerType = HumanPlayer;
     Player playerNumber;
