@@ -171,6 +171,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'c':
             playerType = ComputerPlayer;
+            break;
         case 'h':
         default: /* '?' */
             (void)fprintf(stderr, "Usage: %s [-i identifier] [-h] [-t msg|fifo] [-s]\n"
