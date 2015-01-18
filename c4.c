@@ -148,22 +148,17 @@ int readUserInput()
 int main(int argc, char *argv[]) {
     int opt;
     char identifier[MAX_ID_SIZE];
-    char transport[5];
     char libname[30];
     int server = 0;
     PlayerType playerType = HumanPlayer;
     Player playerNumber;
 
-    strncpy(transport, "fifo", 5u);
-    strncpy(identifier, "game", MAX_ID_SIZE);
+    strncpy(identifier, "irda", MAX_ID_SIZE);
 
-    while ((opt = getopt(argc, argv, "i:t:hsc")) != -1) {
+    while ((opt = getopt(argc, argv, "i:hsc")) != -1) {
         switch (opt) {
         case 'i':
              (void)strncpy(identifier, optarg, MAX_ID_SIZE);
-            break;
-        case 't':
-            (void)strncpy(transport, optarg, 5u);
             break;
         case 's':
             server = 1;
@@ -173,8 +168,11 @@ int main(int argc, char *argv[]) {
             break;
         case 'h':
         default: /* '?' */
-            (void)fprintf(stderr, "Usage: %s [-i identifier] [-h] [-t msg|fifo] [-s]\n"
-                                  "The identifier should be a string with a maximum length of 30 characters\n",
+            (void)fprintf(stderr, "Usage: %s [-i identifier] [-s] [-c] [-h]\n"
+                                  "   i - The identifier should be a string with a maximum length of 30 characters\n"
+                                  "   s - Starts in server mode.\n"
+                                  "   c - Starts a computer player.\n"
+                                  "   h - Shows this help.\n",
                     argv[0]);
             exit(EXIT_FAILURE);
         }
