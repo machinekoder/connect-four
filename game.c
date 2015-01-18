@@ -723,7 +723,7 @@ int game_place(int column)
     {
         int result;
 
-        result = placeBeacon(PlayerOne, column);
+        result = placeBeacon(PlayerTwo, column);
         if (result == -1)
         {
             DEBUG(2, "not playable");
@@ -785,7 +785,7 @@ int game_commit()
             gameState = PlayerOneTurn;
             localMessage("Opponents turn, please stay calm");
             visualize_game(&gameField, gameMessage);
-            return sendMessage("Your turn");
+            return sendMessage("Your turn") || sendField(&gameField);
         }
         else
         {
