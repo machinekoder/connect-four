@@ -163,11 +163,12 @@ int main(int argc, char *argv[]) {
     char transport[5];
     char libname[30];
     int server = 0;
+    PlayerType playerType = HumanPlayer;
     
     strncpy(transport, "fifo", 5u);
     strncpy(identifier, "game", MAX_ID_SIZE);
     
-    while ((opt = getopt(argc, argv, "i:t:hs")) != -1) {
+    while ((opt = getopt(argc, argv, "i:t:hsc")) != -1) {
         switch (opt) {
         case 'i':
              (void)strncpy(identifier, optarg, MAX_ID_SIZE);
@@ -178,6 +179,8 @@ int main(int argc, char *argv[]) {
         case 's':
             server = 1;
             break;
+        case 'c':
+            playerType = ComputerPlayer;
         case 'h':
         default: /* '?' */
             (void)fprintf(stderr, "Usage: %s [-i identifier] [-h] [-t msg|fifo] [-s]\n"
@@ -226,7 +229,7 @@ int main(int argc, char *argv[]) {
     }
     else // parent, doing as usual
     {  
-        PlayerType playerType;
+        Player playerName;
         
         interface_openLibrary(libname);
         registerSignalhandler();
@@ -235,7 +238,7 @@ int main(int argc, char *argv[]) {
         if (server) 
         {
             INFO("waiting for client to connect");
-            playerType = ComputerPlayer;
+            playerName = PlayerTwo;
             
             while (1) 
             {
@@ -247,7 +250,7 @@ int main(int argc, char *argv[]) {
                         DEBUG(1, "server connected");
                         INFO("client connected");
                         connectionState = Connected_State;
-                        game_initGame(ComputerPlayer);
+                        game_initGame(PlayerTwo, playerType);
                     }
                 }
                 
@@ -258,7 +261,17 @@ int main(int argc, char *argv[]) {
                     {
                         DEBUG(1, "game disconnected");
                         INFO("client disconnected");
-                        interface_closeClient();
+                        interface_closeServer();
+                        connectionState = Disconnected_State;
+                    }
+                    
+                    DEBUG(1, "reading user input");
+                    if (readUserInput(stdinPipe[0]) != 0)
+                    {
+                        visualize_clearScreen();
+                        DEBUG(1, "game disconnected");
+                        INFO("user input broken");
+                        interface_closeServer();
                         connectionState = Disconnected_State;
                     }
                 }
@@ -272,7 +285,7 @@ int main(int argc, char *argv[]) {
         else
         {
             INFO("waiting for server to appear...");
-            playerType = HumanPlayer;
+            playerName = PlayerOne;
             
             while (1)
             {
@@ -283,7 +296,7 @@ int main(int argc, char *argv[]) {
                     {
                         DEBUG(1, "client connected");
                         connectionState = Connected_State;
-                        game_initGame(playerType);
+                        game_initGame(playerName, playerType);
                     }
                 }
                 
@@ -304,7 +317,7 @@ int main(int argc, char *argv[]) {
                     {
                         visualize_clearScreen();
                         DEBUG(1, "game disconnected");
-                        INFO("server disconnected");
+                        INFO("user input broken");
                         interface_closeClient();
                         connectionState = Disconnected_State;
                     }

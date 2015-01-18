@@ -8,11 +8,12 @@
 typedef enum {
     Init,
     Running,
-    ComputerTurn,
-    PlayerTurn,
-    PlayerPlaced,
-    ComputerWon,
-    PlayerWon,
+    PlayerTwoTurn,
+    PlayerOneTurn,
+    PlayerOnePlaced,
+    PlayerTwoPlaced,
+    PlayerTwoWon,
+    PlayerOneWon,
     Remis
 } GameState;
 
@@ -31,6 +32,7 @@ typedef struct {
 MessageContainer container;
 GameField gameField;
 GameState gameState = Init;
+Player playerNumber;
 PlayerType playerType;
 char gameMessage[100];
 
@@ -61,7 +63,7 @@ int endGame();
  * @column the column to place the beacon in
  * @return 0 on success, -1 on failure
  */
-int placeColumn(PlayerType type, int column);
+int placeColumn(Player type, int column);
 /** Unplaces a beacon from a column
  * @column column where the beacon should be removed
  * @return 0 on success, -1 on failure
@@ -72,7 +74,7 @@ int unplaceColumn(int column);
  * @column the column to place the beacon in
  * @return 0 on success, -1 on failure
  */
-int placeBeacon(PlayerType type, int column);
+int placeBeacon(Player type, int column);
 /** Processes a received message 
  * @message pointer to the received message
  * @return 0 on success, 1 on failure
@@ -275,10 +277,10 @@ int checkGame()
         case ' ': 
             return 0;
         case 'O':
-            gameState = ComputerWon;
+            gameState = PlayerTwoWon;
             return 1;
         case '@':
-            gameState = PlayerWon;
+            gameState = PlayerOneWon;
             return 1;
         case 'X':
             gameState = Remis;
@@ -288,7 +290,7 @@ int checkGame()
     }
 }
 
-int placeColumn(PlayerType type, int column)
+int placeColumn(Player type, int column)
 {
     int i;
     
@@ -301,7 +303,7 @@ int placeColumn(PlayerType type, int column)
     {
         if (gameField[column][i] == ' ')
         {
-            gameField[column][i] = (type == ComputerPlayer) ? 'O' : '@';
+            gameField[column][i] = (type == PlayerTwo) ? 'O' : '@';
             return 0;
         }
     }
@@ -330,18 +332,18 @@ int unplaceColumn(int column)
     return 0;
 }
 
-int placeBeacon(PlayerType type, int column)
+int placeBeacon(Player type, int column)
 {
     static int lastColumn = 0;
     
-    if (type == HumanPlayer)
+    if (type == PlayerOne)
     {
         DEBUG(3, "placing human beacon");
         
         lastColumn = column;
         return placeColumn(type, column);
     }
-    else if (type == ComputerPlayer)
+    else if (type == PlayerTwo)
     {
         DEBUG(3, "placing computer beacon");
         
@@ -370,17 +372,17 @@ int placeBeacon(PlayerType type, int column)
 
 int endGame()
 {
-    if (gameState == PlayerWon)
+    if (gameState == PlayerOneWon)
     {
-        localMessage("Haha, you lost!");
+        localMessage("Haha, you are a loser!");
         if (sendMessage("Congratulations, you have won the game!") != 0)
         {
             return 1;
         }
     }
-    else if (gameState == ComputerWon)
+    else if (gameState == PlayerTwoWon)
     {
-        localMessage("Congratulations, you have won the game!");
+        localMessage("Congratulations, you are the bloody winner of the game!");
         if (sendMessage("Haha, you lost!") != 0)
         {
             return 1;
@@ -388,7 +390,7 @@ int endGame()
     }
     else
     {
-        localMessage("Oh, we have remis here");
+        localMessage("Seriously a remis? You can do better.");
         if (sendMessage("Oh, we have remis here") != 0)
         {
             return 1;
@@ -400,7 +402,7 @@ int endGame()
 
 int processMessage(MessageContainer *message)
 {
-    if (playerType == ComputerPlayer)
+    if (playerNumber == PlayerTwo)
     {
         if (message->type == Close_MessageType)
         {
@@ -411,16 +413,16 @@ int processMessage(MessageContainer *message)
         else if (message->type == Restart_MessageType)
         {
             DEBUG(2, "received restart");
-            game_initGame(ComputerPlayer);
+            game_initGame(PlayerTwo, playerType);
         }
-        else if ((gameState == PlayerTurn) && (message->type == Place_MessageType))
+        else if ((gameState == PlayerOneTurn) && (message->type == Place_MessageType))
         {
             int result;
             
             DEBUG(2, "received placing message");
             PlaceMessageContainer *placeContainer;
             placeContainer = (PlaceMessageContainer*)&(message->payload);
-            result = placeBeacon(HumanPlayer, placeContainer->column);
+            result = placeBeacon(PlayerOne, placeContainer->column);
             if (result == -1)
             {
                 DEBUG(2, "not playable");
@@ -431,21 +433,21 @@ int processMessage(MessageContainer *message)
             else
             {
                 DEBUG(2, "placed");
-                gameState = PlayerPlaced;
+                gameState = PlayerOnePlaced;
                 localMessage("Alarm, alarm, your opponent is ready to commit");
                 visualize_game(&gameField, gameMessage);
                 return (sendMessage("Ready to commit") || sendField(&gameField));
             }
         }
-        else if ((gameState == PlayerPlaced) && (message->type == Commit_MessageType))
+        else if ((gameState == PlayerOnePlaced) && (message->type == Commit_MessageType))
         {
             if (checkGame() == 0)
             {
                 DEBUG(2, "committed");
-                gameState = ComputerTurn;
-                localMessage("Think faster!!!");
+                gameState = PlayerTwoTurn;
+                localMessage("Your turn");
                 visualize_game(&gameField, gameMessage);
-                return sendMessage("Computers turn, please stay calm");
+                return sendMessage("Opponents turn, please stay calm");
             }
             else 
             {
@@ -453,10 +455,10 @@ int processMessage(MessageContainer *message)
                 return endGame(); // the game has ended
             }
         }
-        else if ((gameState == PlayerPlaced) && (message->type == Unplace_MessageType))
+        else if ((gameState == PlayerOnePlaced) && (message->type == Unplace_MessageType))
         {
             DEBUG(2, "unplaced");
-            gameState = PlayerTurn;
+            gameState = PlayerOneTurn;
             (void)placeBeacon(NoPlayer, 0); // return value can be ignored
             localMessage("Your opponent is a coward, he unplaced the beacon");
             visualize_game(&gameField, gameMessage);
@@ -628,30 +630,31 @@ int sendClientClose()
     return 0;
 }
 
-void game_initGame(PlayerType type)
+void game_initGame(Player player, PlayerType type)
 {
     initGameField();
+    playerNumber = player;
     playerType = type;
     strcpy(gameMessage, "");
     
-    if (playerType == HumanPlayer)
+    if (playerNumber == PlayerOne)
     {
         gameState = Running;
         visualize_game(&gameField, gameMessage);
     }
     else
     {
-        gameState = PlayerTurn;
-        sendMessage("Started a new game, its your turn");
+        gameState = PlayerOneTurn;
         localMessage("Started a new game, its the opponents turn");
-        sendField(&gameField);
         visualize_game(&gameField, gameMessage);
+        sendMessage("Started a new game, its your turn");
+        sendField(&gameField);
     }
 }
 
 int game_process()
 {
-    if (playerType == HumanPlayer)
+    if (playerNumber == PlayerOne)
     {
         DEBUG(1,"reading messages");
         while (interface_readClient(&container) > 0)
@@ -675,10 +678,10 @@ int game_process()
             }
         }
         
-        if (gameState == ComputerTurn)
+        if ((gameState == PlayerTwoTurn) && (playerType == ComputerPlayer))
         {
             DEBUG(1,"computers turn");
-            (void)placeBeacon(ComputerPlayer, 0);   // return always 0 for ComputerPlayer
+            (void)placeBeacon(PlayerTwo, 0);   // return always 0 for ComputerPlayer
             if (checkGame() == 1)
             {
                 visualize_game(&gameField, gameMessage);
@@ -686,7 +689,7 @@ int game_process()
             }
             else 
             {
-                gameState = PlayerTurn;
+                gameState = PlayerOneTurn;
                 localMessage("Its the opponents turn");
                 visualize_game(&gameField, gameMessage);
                 return (sendMessage("Its your turn") || sendField(&gameField));
@@ -699,22 +702,103 @@ int game_process()
 
 int game_restart()
 {
-    return sendRestart();
+    if (playerNumber == PlayerOne) 
+    {
+        return sendRestart();
+    }
+    else 
+    {
+        game_initGame(PlayerOne, playerType);
+        return 0;
+    }
 }
 
 int game_place(int column)
 {
-    return sendPlace(column);
+    if (playerNumber == PlayerOne)
+    {
+        return sendPlace(column);
+    }
+    else if (gameState == PlayerTwoTurn)
+    {
+        int result;
+        
+        result = placeBeacon(PlayerOne, column);
+        if (result == -1)
+        {
+            DEBUG(2, "not playable");
+            localMessage("Not placeable, try again");
+            visualize_game(&gameField, gameMessage);
+            return sendMessage("Your opponent is a fool...");
+        }
+        else
+        {
+            DEBUG(2, "placed");
+            gameState = PlayerTwoPlaced;
+            localMessage("Ready to commit");
+            visualize_game(&gameField, gameMessage);
+            return (sendMessage("Alarm, alarm, your opponent is ready to commit") || sendField(&gameField));
+        }
+    }
+    else
+    {
+        localMessage("Wrong input");
+        visualize_game(&gameField, gameMessage);
+        return 0;
+    }
 }
 
 int game_unplace()
 {
-    return sendUnplace();
+    if (playerNumber == PlayerOne)
+    {
+        return sendUnplace();
+    }
+    else if (gameState == PlayerTwoPlaced)
+    {
+        DEBUG(2, "unplaced");
+        gameState = PlayerTwoTurn;
+        (void)placeBeacon(NoPlayer, 0); // return value can be ignored
+        localMessage("Try again");
+        visualize_game(&gameField, gameMessage);
+        return (sendMessage("Your opponent is a coward, he unplaced the beacon") || sendField(&gameField));
+    }
+    else
+    {
+        localMessage("Wrong input");
+        visualize_game(&gameField, gameMessage);
+        return 0;
+    }
 }
 
 int game_commit()
 {
-    return sendCommit();
+    if (playerNumber == PlayerOne)
+    {
+        return sendCommit();
+    }
+    else if (gameState == PlayerTwoPlaced)
+    { 
+        if (checkGame() == 0)
+        {
+            DEBUG(2, "committed");
+            gameState = PlayerOneTurn;
+            localMessage("Opponents turn, please stay calm");
+            visualize_game(&gameField, gameMessage);
+            return sendMessage("Your turn");
+        }
+        else 
+        {
+            DEBUG(2, "the game has ended");
+            return endGame(); // the game has ended
+        }
+    }
+    else
+    {
+        localMessage("Wrong input");
+        visualize_game(&gameField, gameMessage);
+        return 0;
+    }
 }
 
 int game_close()

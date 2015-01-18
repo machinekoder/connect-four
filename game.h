@@ -9,15 +9,20 @@
 typedef char GameField[FIELD_COLUMNS][FIELD_ROWS] ;
 
 typedef enum {
-    ComputerPlayer,
-    HumanPlayer,
+    PlayerOne,
+    PlayerTwo,
     NoPlayer
+} Player;
+
+typedef enum {
+    ComputerPlayer,
+    HumanPlayer
 } PlayerType;
 
 /** Initializes the game 
  * @type The type of the player, human or computer 
  */
-void game_initGame(PlayerType type);
+void game_initGame(Player player, PlayerType type);
 /** Processes the game, should be called periodically
  * @return 0 on success 1 on failure
  */
