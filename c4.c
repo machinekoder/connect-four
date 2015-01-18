@@ -22,11 +22,11 @@
 #include "debug.h"
 
 typedef enum {
-    Disconnected_ClientState,
-    Connected_ClientState
+    Disconnected_State,
+    Connected_State
 } ClientState;
 
-ClientState clientState = Disconnected_ClientState;   
+ClientState connectionState = Disconnected_State;   
 
 /** Handles SIGINT signals */
 void sigintHandler(int s);
@@ -162,11 +162,12 @@ int main(int argc, char *argv[]) {
     char identifier[MAX_ID_SIZE];
     char transport[5];
     char libname[30];
+    int server = 0;
     
     strncpy(transport, "fifo", 5u);
     strncpy(identifier, "game", MAX_ID_SIZE);
     
-    while ((opt = getopt(argc, argv, "i:t:h")) != -1) {
+    while ((opt = getopt(argc, argv, "i:t:hs")) != -1) {
         switch (opt) {
         case 'i':
              (void)strncpy(identifier, optarg, MAX_ID_SIZE);
@@ -174,9 +175,12 @@ int main(int argc, char *argv[]) {
         case 't':
             (void)strncpy(transport, optarg, 5u);
             break;
+        case 's':
+            server = 1;
+            break;
         case 'h':
         default: /* '?' */
-            (void)fprintf(stderr, "Usage: %s [-i identifier] [-h] [-t msg|fifo]\n"
+            (void)fprintf(stderr, "Usage: %s [-i identifier] [-h] [-t msg|fifo] [-s]\n"
                                   "The identifier should be a string with a maximum length of 30 characters\n",
                     argv[0]);
             exit(EXIT_FAILURE);
@@ -222,52 +226,95 @@ int main(int argc, char *argv[]) {
     }
     else // parent, doing as usual
     {  
+        PlayerType playerType;
+        
         interface_openLibrary(libname);
         registerSignalhandler();
         interface_init(identifier);
         
-        INFO("waiting for server to appear...");
-        
-        while (1) 
+        if (server) 
         {
-            if (clientState == Disconnected_ClientState)
-            {
-                DEBUG(1, "open client");
-                if (interface_openClient() == 0)
-                {
-                    DEBUG(1, "client connected");
-                    clientState = Connected_ClientState;
-                    game_initGame(HumanPlayer);
-                }
-            }
+            INFO("waiting for client to connect");
+            playerType = ComputerPlayer;
             
-            if (clientState == Connected_ClientState)
+            while (1) 
             {
-                DEBUG(1, "process game");
-                if (game_process() != 0)
+                if (connectionState == Disconnected_State)
                 {
-                    visualize_clearScreen();
-                    DEBUG(1, "game disconnected");
-                    INFO("server disconnected");
-                    interface_closeClient();
-                    clientState = Disconnected_ClientState;
+                    DEBUG(1, "open server");
+                    if (interface_openServer() == 0)
+                    {
+                        DEBUG(1, "server connected");
+                        INFO("client connected");
+                        connectionState = Connected_State;
+                        game_initGame(ComputerPlayer);
+                    }
                 }
                 
-                DEBUG(1, "reading user input");
-                if (readUserInput(stdinPipe[0]) != 0)
+                if (connectionState == Connected_State)
                 {
-                    visualize_clearScreen();
-                    DEBUG(1, "game disconnected");
-                    INFO("server disconnected");
-                    interface_closeClient();
-                    clientState = Disconnected_ClientState;
+                    DEBUG(1, "process game");
+                    if (game_process() != 0)
+                    {
+                        DEBUG(1, "game disconnected");
+                        INFO("client disconnected");
+                        interface_closeClient();
+                        connectionState = Disconnected_State;
+                    }
                 }
+                
+                struct timespec tim;
+                tim.tv_sec = 0;
+                tim.tv_nsec = 20000000L; // 200ms
+                (void)nanosleep(&tim, NULL);
             }
+        }
+        else
+        {
+            INFO("waiting for server to appear...");
+            playerType = HumanPlayer;
             
-            struct timespec tim;
-            tim.tv_sec = 0;
-            tim.tv_nsec = 20000000L; // 200ms
-            (void)nanosleep(&tim, NULL);
+            while (1)
+            {
+                if (connectionState == Disconnected_State)
+                {
+                    DEBUG(1, "open client");
+                    if (interface_openClient() == 0)
+                    {
+                        DEBUG(1, "client connected");
+                        connectionState = Connected_State;
+                        game_initGame(playerType);
+                    }
+                }
+                
+                if (connectionState == Connected_State)
+                {
+                    DEBUG(1, "process game");
+                    if (game_process() != 0)
+                    {
+                        visualize_clearScreen();
+                        DEBUG(1, "game disconnected");
+                        INFO("server disconnected");
+                        interface_closeClient();
+                        connectionState = Disconnected_State;
+                    }
+                    
+                    DEBUG(1, "reading user input");
+                    if (readUserInput(stdinPipe[0]) != 0)
+                    {
+                        visualize_clearScreen();
+                        DEBUG(1, "game disconnected");
+                        INFO("server disconnected");
+                        interface_closeClient();
+                        connectionState = Disconnected_State;
+                    }
+                }
+                
+                struct timespec tim;
+                tim.tv_sec = 0;
+                tim.tv_nsec = 20000000L; // 200ms
+                (void)nanosleep(&tim, NULL);
+            }
         }
     }
     

@@ -88,6 +88,11 @@ int sendField(GameField *field);
  * @return 0 on success, 1 on failure
  */
 int sendMessage(char *message);
+/** Set local message
+ * message pointer to the message
+ * @return 0 on success, 1 on failure
+ */
+int localMessage(char *message);
 /** Send close event to client
  * @return 0 on success, 1 on failure
  */
@@ -367,6 +372,7 @@ int endGame()
 {
     if (gameState == PlayerWon)
     {
+        localMessage("Haha, you lost!");
         if (sendMessage("Congratulations, you have won the game!") != 0)
         {
             return 1;
@@ -374,6 +380,7 @@ int endGame()
     }
     else if (gameState == ComputerWon)
     {
+        localMessage("Congratulations, you have won the game!");
         if (sendMessage("Haha, you lost!") != 0)
         {
             return 1;
@@ -381,11 +388,13 @@ int endGame()
     }
     else
     {
+        localMessage("Oh, we have remis here");
         if (sendMessage("Oh, we have remis here") != 0)
         {
             return 1;
         }
     }
+    visualize_game(&gameField, gameMessage);
     return sendField(&gameField);
 }
 
@@ -415,12 +424,16 @@ int processMessage(MessageContainer *message)
             if (result == -1)
             {
                 DEBUG(2, "not playable");
+                localMessage("Your opponent is a fool...");
+                visualize_game(&gameField, gameMessage);
                 return sendMessage("Not placeable, try again");
             }
             else
             {
                 DEBUG(2, "placed");
                 gameState = PlayerPlaced;
+                localMessage("Alarm, alarm, your opponent is ready to commit");
+                visualize_game(&gameField, gameMessage);
                 return (sendMessage("Ready to commit") || sendField(&gameField));
             }
         }
@@ -428,8 +441,10 @@ int processMessage(MessageContainer *message)
         {
             if (checkGame() == 0)
             {
-                DEBUG(2, "commited");
+                DEBUG(2, "committed");
                 gameState = ComputerTurn;
+                localMessage("Think faster!!!");
+                visualize_game(&gameField, gameMessage);
                 return sendMessage("Computers turn, please stay calm");
             }
             else 
@@ -443,11 +458,15 @@ int processMessage(MessageContainer *message)
             DEBUG(2, "unplaced");
             gameState = PlayerTurn;
             (void)placeBeacon(NoPlayer, 0); // return value can be ignored
+            localMessage("Your opponent is a coward, he unplaced the beacon");
+            visualize_game(&gameField, gameMessage);
             return (sendMessage("Try again") || sendField(&gameField));
         }
         else
         {
             DEBUG(2, "wrong message received");
+            localMessage("Hey, your opponent does random stuff");
+            visualize_game(&gameField, gameMessage);
             return sendMessage("You are doing something wrong");
         }
     }
@@ -516,6 +535,13 @@ int sendMessage(char *message)
         ERROR("error while writing");
         return 1;
     }
+    
+    return 0;
+}
+
+int localMessage(char* message)
+{
+    strcpy(gameMessage, message);
     
     return 0;
 }
@@ -616,9 +642,10 @@ void game_initGame(PlayerType type)
     else
     {
         gameState = PlayerTurn;
-        sendField(&gameField);
         sendMessage("Started a new game, its your turn");
+        localMessage("Started a new game, its the opponents turn");
         sendField(&gameField);
+        visualize_game(&gameField, gameMessage);
     }
 }
 
@@ -654,14 +681,16 @@ int game_process()
             (void)placeBeacon(ComputerPlayer, 0);   // return always 0 for ComputerPlayer
             if (checkGame() == 1)
             {
+                visualize_game(&gameField, gameMessage);
                 return endGame();  // someone has won the game
             }
             else 
             {
                 gameState = PlayerTurn;
+                localMessage("Its the opponents turn");
+                visualize_game(&gameField, gameMessage);
                 return (sendMessage("Its your turn") || sendField(&gameField));
             }
-            
         }
     }
     
