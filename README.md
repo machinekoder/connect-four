@@ -12,13 +12,16 @@ The game uses only POSIX and C99 components. You can compile it using:
 ## Documentation
 Documentation is provided using Doxygen.
 
-    make docs
+    make doc
     
 ## How to play
-The game can be used with FIFO and message queue transports. Furthermore one can specify more a specific session identifier.
+The game can be used with FIFO, message queue and the very special IRDA transports. Furthermore one can specify more a specific session or device identifier.
 
-    server|client [-i identifier] [-h] [-t msg|fifo]
-    The identifier should be a string with a maximum length of 30 characters
+    c4 [-i identifier] [-s] [-c] [-h]
+       i - The identifier should be a string with a maximum length of 30 characters
+       s - Starts in server mode.
+       c - Starts a computer player.
+       h - Shows this help.
 
 Inside the game the following commands can be used
 

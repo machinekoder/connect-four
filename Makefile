@@ -8,15 +8,17 @@
 CC ?= gcc
 
 RM=rm -rf
-PROGRAM = connectfour
+PROGRAM = c4
 
 ######################################################################
 ######################################################################
 SRC = c4.c base64.c game.c interface_irda.c visualize.c
+#SRC = c4.c base64.c game.c interface_fifo.c visualize.c
+#SRC = c4.c base64.c game.c interface_msg.c visualize.c
 INC = debug.h message.h interface.h
 
 OBJ = $(SRC:.c=.o)
-CFLAGS += -O0
+CFLAGS += -O0 -std=c99
 ######################################################################
 ######################################################################
 .PHONY: clean uninstall install com all romfs
