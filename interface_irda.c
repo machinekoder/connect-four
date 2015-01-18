@@ -13,7 +13,7 @@
 
 #define READ_BUFFER_SIZE 1000u
 
-#define FD_SIZE MAX_ID_SIZE+5
+#define FD_SIZE MAX_ID_SIZE+6
 
 char irdaName[FD_SIZE];
 
