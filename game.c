@@ -345,22 +345,32 @@ int placeBeacon(Player type, int column)
     }
     else if (type == PlayerTwo)
     {
-        DEBUG(3, "placing computer beacon");
+        if (playerType == HumanPlayer)
+        {
+            DEBUG(3, "placing human beacon");
 
-        int checked = 0;
-
-        do {
-            if (!checked && ((rand() % 3) == 0))    // last column with 1/3 possibility
-            {
-                column = lastColumn;
-            }
-            else
-            {
-                column = (rand() % 7);  // 0 to 6
-            }
-            checked = 1;
+            lastColumn = column;
+            return placeColumn(type, column);
         }
-        while (placeColumn(type, column) == -1);
+        else
+        {
+            DEBUG(3, "placing computer beacon");
+
+            int checked = 0;
+
+            do {
+                if (!checked && ((rand() % 3) == 0))    // last column with 1/3 possibility
+                {
+                    column = lastColumn;
+                }
+                else
+                {
+                    column = (rand() % 7);  // 0 to 6
+                }
+                checked = 1;
+            }
+            while (placeColumn(type, column) == -1);
+        }
     }
     else // remove that last turn
     {
