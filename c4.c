@@ -15,6 +15,7 @@
 #include <stdio.h>  
 #include <signal.h>
 #include <getopt.h>
+#include <poll.h>
 #include "interface_dl.h"
 #include "message.h"
 #include "game.h"
@@ -45,7 +46,7 @@ int handleUserInput(char *input);
  * @fd pipe discriptor where to get the data
  * @return 0 on success 1 on failure
  */
-int readUserInput(int fd);
+int readUserInput();
 
 void sigintHandler(int s) {
     (void)s;
@@ -123,47 +124,36 @@ int handleUserInput(char *input)
     return 0;
 }
 
-int readUserInput(int fd)
+int readUserInput()
 {
-    char readChar;
-    static char buffer[100];
-    static int bufferPos = 0;
+    static char buffer[5] = {0};
+    int ret;
+    struct pollfd stdinPoll = { .fd = STDIN_FILENO, .events = POLLIN };
     
-    while (read(fd, &readChar, 1u) > 0)
+    ret = poll(&stdinPoll, (nfds_t) 1, 200); // Blocking I/0 only for 200ms
+    
+    if (!(ret == POLLIN)) 
     {
-        if (readChar != '\n')
-        {
-            buffer[bufferPos] = readChar;
-            bufferPos += 1;
-            
-            if (bufferPos == 100)
-            {
-                bufferPos = 0;
-            }
-        }
-        else
-        {
-            buffer[bufferPos] = '\0';
-            if (handleUserInput(buffer) != 0)
-            {
-                return -1;
-            }
-            bufferPos = 0;
-        }
+        return 0;
+    }
+    
+    if (fgets(buffer, 5, stdin) != NULL)
+    {
+        buffer[strlen(buffer)-1] = 0;
+        handleUserInput(buffer);
     }
     
     return 0;
 }
 
 int main(int argc, char *argv[]) {
-    pid_t pid;
-    int stdinPipe[2];
     int opt;
     char identifier[MAX_ID_SIZE];
     char transport[5];
     char libname[30];
     int server = 0;
     PlayerType playerType = HumanPlayer;
+    Player playerNumber;
     
     strncpy(transport, "fifo", 5u);
     strncpy(identifier, "game", MAX_ID_SIZE);
@@ -191,142 +181,92 @@ int main(int argc, char *argv[]) {
     }
     
     snprintf(libname, 30u, "./libinterface_%s.so", transport);
-    
-    if (pipe(stdinPipe) == -1)
-    {
-        ERROR("failed to create pipe");
-        exit(EXIT_FAILURE);
-    }
-    if ((fcntl(stdinPipe[0], F_SETFL, O_NONBLOCK) == -1)
-        || (fcntl(stdinPipe[1], F_SETFL, O_NONBLOCK) == -1))
-    {
-        ERROR("failed to set non-blocking option");
-        exit(EXIT_FAILURE);
-    }
-    
-    pid = fork();   // fork to create a process for reading stdin
-    
-    if (pid < 0)
-    {
-        ERROR("failed to fork");
-        exit(EXIT_FAILURE);
-    }
-    else if (pid == 0)  // child, stdin reader
-    {
-        char readChar;
         
-        while (read(STDIN_FILENO, &readChar, 1u) > 0)
+    interface_openLibrary(libname);
+    registerSignalhandler();
+    interface_init(identifier);
+    
+    if (server) 
+    {
+        INFO("waiting for client to connect");
+        playerNumber = PlayerTwo;
+        
+        while (1) 
         {
-            DEBUG(3, "reading stdin");
-            if (write(stdinPipe[1], &readChar, 1u) == -1)
+            if (connectionState == Disconnected_State)
             {
-                ERROR("error writing pipe");
-                exit(EXIT_FAILURE);
+                DEBUG(1, "open server");
+                if (interface_openServer() == 0)
+                {
+                    DEBUG(1, "server connected");
+                    INFO("client connected");
+                    connectionState = Connected_State;
+                    game_initGame(PlayerTwo, playerType);
+                }
+            }
+            
+            if (connectionState == Connected_State)
+            {
+                DEBUG(1, "process game");
+                if (game_process() != 0)
+                {
+                    DEBUG(1, "game disconnected");
+                    INFO("client disconnected");
+                    interface_closeServer();
+                    connectionState = Disconnected_State;
+                }
+                
+                DEBUG(1, "reading user input");
+                if (readUserInput() != 0)
+                {
+                    visualize_clearScreen();
+                    DEBUG(1, "game disconnected");
+                    INFO("user input broken");
+                    interface_closeServer();
+                    connectionState = Disconnected_State;
+                }
             }
         }
-        
-        return 0;
     }
-    else // parent, doing as usual
-    {  
-        Player playerName;
+    else
+    {
+        INFO("waiting for server to appear...");
+        playerNumber = PlayerOne;
         
-        interface_openLibrary(libname);
-        registerSignalhandler();
-        interface_init(identifier);
-        
-        if (server) 
+        while (1)
         {
-            INFO("waiting for client to connect");
-            playerName = PlayerTwo;
-            
-            while (1) 
+            if (connectionState == Disconnected_State)
             {
-                if (connectionState == Disconnected_State)
+                DEBUG(1, "open client");
+                if (interface_openClient() == 0)
                 {
-                    DEBUG(1, "open server");
-                    if (interface_openServer() == 0)
-                    {
-                        DEBUG(1, "server connected");
-                        INFO("client connected");
-                        connectionState = Connected_State;
-                        game_initGame(PlayerTwo, playerType);
-                    }
+                    DEBUG(1, "client connected");
+                    connectionState = Connected_State;
+                    game_initGame(playerNumber, playerType);
                 }
-                
-                if (connectionState == Connected_State)
-                {
-                    DEBUG(1, "process game");
-                    if (game_process() != 0)
-                    {
-                        DEBUG(1, "game disconnected");
-                        INFO("client disconnected");
-                        interface_closeServer();
-                        connectionState = Disconnected_State;
-                    }
-                    
-                    DEBUG(1, "reading user input");
-                    if (readUserInput(stdinPipe[0]) != 0)
-                    {
-                        visualize_clearScreen();
-                        DEBUG(1, "game disconnected");
-                        INFO("user input broken");
-                        interface_closeServer();
-                        connectionState = Disconnected_State;
-                    }
-                }
-                
-                struct timespec tim;
-                tim.tv_sec = 0;
-                tim.tv_nsec = 20000000L; // 200ms
-                (void)nanosleep(&tim, NULL);
             }
-        }
-        else
-        {
-            INFO("waiting for server to appear...");
-            playerName = PlayerOne;
             
-            while (1)
+            if (connectionState == Connected_State)
             {
-                if (connectionState == Disconnected_State)
+                DEBUG(1, "process game");
+                if (game_process() != 0)
                 {
-                    DEBUG(1, "open client");
-                    if (interface_openClient() == 0)
-                    {
-                        DEBUG(1, "client connected");
-                        connectionState = Connected_State;
-                        game_initGame(playerName, playerType);
-                    }
+                    visualize_clearScreen();
+                    DEBUG(1, "game disconnected");
+                    INFO("server disconnected");
+                    interface_closeClient();
+                    connectionState = Disconnected_State;
                 }
                 
-                if (connectionState == Connected_State)
+                DEBUG(1, "reading user input");
+                if (readUserInput() != 0)
                 {
-                    DEBUG(1, "process game");
-                    if (game_process() != 0)
-                    {
-                        visualize_clearScreen();
-                        DEBUG(1, "game disconnected");
-                        INFO("server disconnected");
-                        interface_closeClient();
-                        connectionState = Disconnected_State;
-                    }
-                    
-                    DEBUG(1, "reading user input");
-                    if (readUserInput(stdinPipe[0]) != 0)
-                    {
-                        visualize_clearScreen();
-                        DEBUG(1, "game disconnected");
-                        INFO("user input broken");
-                        interface_closeClient();
-                        connectionState = Disconnected_State;
-                    }
+                    visualize_clearScreen();
+                    DEBUG(1, "game disconnected");
+                    INFO("user input broken");
+                    interface_closeClient();
+                    connectionState = Disconnected_State;
                 }
-                
-                struct timespec tim;
-                tim.tv_sec = 0;
-                tim.tv_nsec = 20000000L; // 200ms
-                (void)nanosleep(&tim, NULL);
             }
         }
     }
