@@ -13,7 +13,7 @@
 
 #define READ_BUFFER_SIZE 1000u
 
-#define FD_SIZE MAX_ID_SIZE+3
+#define FD_SIZE MAX_ID_SIZE+5
 
 char irdaName[FD_SIZE];
 
@@ -49,7 +49,7 @@ void closeIrDA();
 void interface_init(char* identifier) {
     fdIrDA = -1;
     readBufferPos = 0;
-    snprintf(irdaName, FD_SIZE, "%scmd",identifier);
+    snprintf(irdaName, FD_SIZE, "%s",identifier);
 }
 
 void interface_cleanup() {
