@@ -110,11 +110,12 @@ int readMessage(MessageContainer* container, int fd)
     {
         if (readChar != '\n')
         {
+
             if (!base64_isbase64(readChar)) // ignore non base64 characters
             {
                 continue;
             }
-            
+
             readBuffer[readBufferPos] = readChar;
             readBufferPos += 1;
 

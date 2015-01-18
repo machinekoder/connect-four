@@ -136,6 +136,7 @@ int readUserInput()
         return 0;
     }
 
+
     if (fgets(buffer, 5, stdin) != NULL)
     {
         buffer[strlen(buffer)-1] = 0;

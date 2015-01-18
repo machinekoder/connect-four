@@ -15,12 +15,14 @@ static int mod_table[] = {0, 2, 1};
 void build_decoding_table();
 
 int base64_isbase64(char c) {
-    if ((decoding_table[(unsigned char)c] != 0)
-        || (c == '=')) 
+
+    if (decoding_table == NULL) build_decoding_table();
+
+    if ((decoding_table[(unsigned char)c] != 0) || (c == '=') || (c == 'A'))
     {
         return 1;
     }
-    
+
     return 0;
 }
 
@@ -97,7 +99,7 @@ void build_decoding_table() {
 
 
 void base64_cleanup() {
-    if (decoding_table != NULL) 
+    if (decoding_table != NULL)
     {
         free(decoding_table);
     }
