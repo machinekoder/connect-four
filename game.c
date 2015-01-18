@@ -1,8 +1,8 @@
-#include <string.h> 
-#include <stdlib.h> 
+#include <string.h>
+#include <stdlib.h>
 #include "game.h"
 #include "visualize.h"
-#include "interface_dl.h"
+#include "interface.h"
 #include "debug.h"
 
 typedef enum {
@@ -75,7 +75,7 @@ int unplaceColumn(int column);
  * @return 0 on success, -1 on failure
  */
 int placeBeacon(Player type, int column);
-/** Processes a received message 
+/** Processes a received message
  * @message pointer to the received message
  * @return 0 on success, 1 on failure
  */
@@ -125,7 +125,7 @@ void initGameField()
 {
     int c;
     int r;
-    
+
     for (c = 0; c < FIELD_COLUMNS; ++c)
     {
         for (r = 0; r < FIELD_ROWS; ++r)
@@ -151,9 +151,9 @@ char checkConnects()
     int r;
     int x;
     char matchChar;
-    
+
     DEBUG(3, "check connects");
-    
+
     // vertical
     for (c = 0; c < FIELD_COLUMNS; ++c)
     {
@@ -177,7 +177,7 @@ char checkConnects()
             }
         }
     }
-    
+
     // horizontal
     for (c = 0; c < (FIELD_COLUMNS-4); ++c)
     {
@@ -201,7 +201,7 @@ char checkConnects()
             }
         }
     }
-    
+
     // diagonal down
     for (c = 0; c < (FIELD_COLUMNS-4); ++c)
     {
@@ -225,7 +225,7 @@ char checkConnects()
             }
         }
     }
-    
+
     // diagonal up
     for (c = 0; c < (FIELD_COLUMNS-4); ++c)
     {
@@ -249,7 +249,7 @@ char checkConnects()
             }
         }
     }
-    
+
     // full
     for (c = 0; c < FIELD_COLUMNS; ++c)
     {
@@ -262,7 +262,7 @@ char checkConnects()
             }
         }
     }
-    
+
     DEBUG(3, "game field full");
     return 'X'; // full field
 }
@@ -271,10 +271,10 @@ int checkGame()
 {
     char result;
     result = checkConnects();
-    
+
     switch (result)
     {
-        case ' ': 
+        case ' ':
             return 0;
         case 'O':
             gameState = PlayerTwoWon;
@@ -293,12 +293,12 @@ int checkGame()
 int placeColumn(Player type, int column)
 {
     int i;
-    
+
     if ((column < 0) || (column > 6))
     {
         return -1;
     }
-    
+
     for (i = (FIELD_ROWS-1); i >= 0; i--)
     {
         if (gameField[column][i] == ' ')
@@ -307,19 +307,19 @@ int placeColumn(Player type, int column)
             return 0;
         }
     }
-    
+
     return -1;
 }
 
 int unplaceColumn(int column)
 {
     int i;
-    
+
     if ((column < 0) || (column > 6))
     {
         return -1;
     }
-    
+
     for (i = 0; i < FIELD_ROWS; ++i)
     {
         if (gameField[column][i] != ' ')
@@ -328,27 +328,27 @@ int unplaceColumn(int column)
            return 0;
         }
     }
-    
+
     return 0;
 }
 
 int placeBeacon(Player type, int column)
 {
     static int lastColumn = 0;
-    
+
     if (type == PlayerOne)
     {
         DEBUG(3, "placing human beacon");
-        
+
         lastColumn = column;
         return placeColumn(type, column);
     }
     else if (type == PlayerTwo)
     {
         DEBUG(3, "placing computer beacon");
-        
+
         int checked = 0;
-        
+
         do {
             if (!checked && ((rand() % 3) == 0))    // last column with 1/3 possibility
             {
@@ -366,7 +366,7 @@ int placeBeacon(Player type, int column)
     {
         return unplaceColumn(lastColumn);
     }
-    
+
     return 0;
 }
 
@@ -418,7 +418,7 @@ int processMessage(MessageContainer *message)
         else if ((gameState == PlayerOneTurn) && (message->type == Place_MessageType))
         {
             int result;
-            
+
             DEBUG(2, "received placing message");
             PlaceMessageContainer *placeContainer;
             placeContainer = (PlaceMessageContainer*)&(message->payload);
@@ -449,7 +449,7 @@ int processMessage(MessageContainer *message)
                 visualize_game(&gameField, gameMessage);
                 return sendMessage("Opponents turn, please stay calm");
             }
-            else 
+            else
             {
                 DEBUG(2, "the game has ended");
                 return endGame(); // the game has ended
@@ -503,14 +503,14 @@ int processMessage(MessageContainer *message)
             // ignore
         }
     }
-    
+
     return 0;
 }
 
 int sendField(GameField *field)
 {
     FieldMessageContainer *fieldContainer;
-    
+
     container.type = Field_MessageType;
     fieldContainer = (FieldMessageContainer*)&(container.payload);
     memcpy(&(fieldContainer->gameField), field, sizeof(GameField));
@@ -520,14 +520,14 @@ int sendField(GameField *field)
         ERROR("error while writing");
         return 1;
     }
-    
+
     return 0;
 }
 
 int sendMessage(char *message)
 {
     MessageMessageContainer *messageContainer;
-    
+
     container.type = Message_MessageType;
     messageContainer = (MessageMessageContainer*)&(container.payload);
     strcpy((messageContainer->message), message);
@@ -537,14 +537,14 @@ int sendMessage(char *message)
         ERROR("error while writing");
         return 1;
     }
-    
+
     return 0;
 }
 
 int localMessage(char* message)
 {
     strcpy(gameMessage, message);
-    
+
     return 0;
 }
 
@@ -557,7 +557,7 @@ int sendServerClose()
         ERROR("error while writing");
         return 1;
     }
-    
+
     return 0;
 }
 
@@ -570,25 +570,25 @@ int sendRestart()
         ERROR("error while writing");
         return 1;
     }
-    
+
     return 0;
 }
 
 int sendPlace(int column)
 {
     PlaceMessageContainer *placeContainer;
-    
+
     container.type = Place_MessageType;
     placeContainer = (PlaceMessageContainer*)&(container.payload);
     placeContainer->column = column;
-    
+
     DEBUG(1, "writing place to cmd");
     if (interface_writeClient(&container) == -1)
     {
         ERROR("error while writing");
         return 1;
     }
-    
+
     return 0;
 }
 
@@ -601,7 +601,7 @@ int sendUnplace()
         ERROR("error while writing");
         return 1;
     }
-    
+
     return 0;
 }
 
@@ -614,7 +614,7 @@ int sendCommit()
         ERROR("error while writing");
         return 1;
     }
-    
+
     return 0;
 }
 int sendClientClose()
@@ -626,7 +626,7 @@ int sendClientClose()
         ERROR("error while writing");
         return 1;
     }
-    
+
     return 0;
 }
 
@@ -636,7 +636,7 @@ void game_initGame(Player player, PlayerType type)
     playerNumber = player;
     playerType = type;
     strcpy(gameMessage, "");
-    
+
     if (playerNumber == PlayerOne)
     {
         gameState = Running;
@@ -677,7 +677,7 @@ int game_process()
                 return 1;
             }
         }
-        
+
         if ((gameState == PlayerTwoTurn) && (playerType == ComputerPlayer))
         {
             DEBUG(1,"computers turn");
@@ -687,7 +687,7 @@ int game_process()
                 visualize_game(&gameField, gameMessage);
                 return endGame();  // someone has won the game
             }
-            else 
+            else
             {
                 gameState = PlayerOneTurn;
                 localMessage("Its the opponents turn");
@@ -696,17 +696,17 @@ int game_process()
             }
         }
     }
-    
+
     return 0;
 }
 
 int game_restart()
 {
-    if (playerNumber == PlayerOne) 
+    if (playerNumber == PlayerOne)
     {
         return sendRestart();
     }
-    else 
+    else
     {
         game_initGame(PlayerOne, playerType);
         return 0;
@@ -722,7 +722,7 @@ int game_place(int column)
     else if (gameState == PlayerTwoTurn)
     {
         int result;
-        
+
         result = placeBeacon(PlayerOne, column);
         if (result == -1)
         {
@@ -778,7 +778,7 @@ int game_commit()
         return sendCommit();
     }
     else if (gameState == PlayerTwoPlaced)
-    { 
+    {
         if (checkGame() == 0)
         {
             DEBUG(2, "committed");
@@ -787,7 +787,7 @@ int game_commit()
             visualize_game(&gameField, gameMessage);
             return sendMessage("Your turn");
         }
-        else 
+        else
         {
             DEBUG(2, "the game has ended");
             return endGame(); // the game has ended

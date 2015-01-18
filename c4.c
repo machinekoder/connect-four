@@ -12,11 +12,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>  
+#include <stdio.h>
 #include <signal.h>
 #include <getopt.h>
 #include <poll.h>
-#include "interface_dl.h"
+#include "interface.h"
 #include "message.h"
 #include "game.h"
 #include "visualize.h"
@@ -27,7 +27,7 @@ typedef enum {
     Connected_State
 } ClientState;
 
-ClientState connectionState = Disconnected_State;   
+ClientState connectionState = Disconnected_State;
 
 /** Handles SIGINT signals */
 void sigintHandler(int s);
@@ -37,7 +37,7 @@ void sigpipeHandler(int s);
 void registerSignalhandler();
 /** Cleans up all used functions */
 void cleanup();
-/** Handles the user input 
+/** Handles the user input
  * @input input string
  * @return 0 on success 1 on failure
  */
@@ -52,14 +52,14 @@ void sigintHandler(int s) {
     (void)s;
     (void)printf("ok, ok I exit\n");
     cleanup();
-    exit(EXIT_FAILURE); 
+    exit(EXIT_FAILURE);
 }
 
 void sigpipeHandler(int s) {
     (void)s;
     (void)printf("got a sigpipe\n");
     cleanup();
-    exit(EXIT_FAILURE); 
+    exit(EXIT_FAILURE);
 }
 
 void registerSignalhandler() {
@@ -71,26 +71,25 @@ void cleanup()
 {
     interface_closeClient();
     interface_cleanup();
-    interface_closeLibrary();
 }
 
 int handleUserInput(char *input)
 {
     DEBUG(1, "got user input");
     DEBUG(1, input);
-    
+
     if (strcmp(input, "q") == 0)
     {
         int result;
         DEBUG(1, "closing game");
         result = game_close();
-        if (result == 0) 
+        if (result == 0)
         {
             INFO("exiting game");
             cleanup();
             exit(EXIT_SUCCESS);
         }
-        else 
+        else
         {
             return 1;
         }
@@ -120,7 +119,7 @@ int handleUserInput(char *input)
         INFO("wrong input");
         // ignore
     }
-    
+
     return 0;
 }
 
@@ -129,20 +128,20 @@ int readUserInput()
     static char buffer[5] = {0};
     int ret;
     struct pollfd stdinPoll = { .fd = STDIN_FILENO, .events = POLLIN };
-    
+
     ret = poll(&stdinPoll, (nfds_t) 1, 200); // Blocking I/0 only for 200ms
-    
-    if (!(ret == POLLIN)) 
+
+    if (!(ret == POLLIN))
     {
         return 0;
     }
-    
+
     if (fgets(buffer, 5, stdin) != NULL)
     {
         buffer[strlen(buffer)-1] = 0;
         handleUserInput(buffer);
     }
-    
+
     return 0;
 }
 
@@ -154,10 +153,10 @@ int main(int argc, char *argv[]) {
     int server = 0;
     PlayerType playerType = HumanPlayer;
     Player playerNumber;
-    
+
     strncpy(transport, "fifo", 5u);
     strncpy(identifier, "game", MAX_ID_SIZE);
-    
+
     while ((opt = getopt(argc, argv, "i:t:hsc")) != -1) {
         switch (opt) {
         case 'i':
@@ -180,19 +179,16 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
     }
-    
-    snprintf(libname, 30u, "./libinterface_%s.so", transport);
-        
-    interface_openLibrary(libname);
+
     registerSignalhandler();
     interface_init(identifier);
-    
-    if (server) 
+
+    if (server)
     {
         INFO("waiting for client to connect");
         playerNumber = PlayerTwo;
-        
-        while (1) 
+
+        while (1)
         {
             if (connectionState == Disconnected_State)
             {
@@ -205,7 +201,7 @@ int main(int argc, char *argv[]) {
                     game_initGame(PlayerTwo, playerType);
                 }
             }
-            
+
             if (connectionState == Connected_State)
             {
                 DEBUG(1, "process game");
@@ -216,7 +212,7 @@ int main(int argc, char *argv[]) {
                     interface_closeServer();
                     connectionState = Disconnected_State;
                 }
-                
+
                 DEBUG(1, "reading user input");
                 if (readUserInput() != 0)
                 {
@@ -233,7 +229,7 @@ int main(int argc, char *argv[]) {
     {
         INFO("waiting for server to appear...");
         playerNumber = PlayerOne;
-        
+
         while (1)
         {
             if (connectionState == Disconnected_State)
@@ -246,7 +242,7 @@ int main(int argc, char *argv[]) {
                     game_initGame(playerNumber, playerType);
                 }
             }
-            
+
             if (connectionState == Connected_State)
             {
                 DEBUG(1, "process game");
@@ -258,7 +254,7 @@ int main(int argc, char *argv[]) {
                     interface_closeClient();
                     connectionState = Disconnected_State;
                 }
-                
+
                 DEBUG(1, "reading user input");
                 if (readUserInput() != 0)
                 {
@@ -271,6 +267,6 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    
+
     return 0;
 }
