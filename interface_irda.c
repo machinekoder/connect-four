@@ -149,6 +149,7 @@ int writeMessage(MessageContainer* container, int fd)
     size_t encodedLength;
     char *encodedData;
     char endChar = '\n';
+    size_t sent = 0;
 
     DEBUG(3, "encoding data");
     encodedData = base64_encode((const unsigned char*)container,
@@ -156,11 +157,16 @@ int writeMessage(MessageContainer* container, int fd)
                                 &encodedLength);
     DEBUG(3, encodedData);
 
-    if (write(fd, encodedData, encodedLength) == -1u)
+    while (encodedLength > 0)
     {
-        ERROR("writing message failed");
-        free(encodedData);
-        return -1;
+        sent = write(fd, encodedData, encodedLength);
+        if (sent == -1u)
+        {
+            ERROR("writing message failed");
+            free(encodedData);
+            return -1;
+        }
+        encodedLength -= sent;
     }
     DEBUG(3, "writing message succeded");
     free(encodedData);
