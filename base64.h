@@ -4,6 +4,11 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+/** check wether a character is base64 or not
+ * @c character to test
+ * @return 1 if c is base64, 0 if not
+ * */
+int base64_isbase64(char c);
 
 /** Encode some data to a base64 encoded string
  * @data pointer to the data to encode

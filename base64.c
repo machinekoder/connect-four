@@ -14,6 +14,16 @@ static int mod_table[] = {0, 2, 1};
 /** Builds a decoding table */
 void build_decoding_table();
 
+int base64_isbase64(char c) {
+    if ((decoding_table[(unsigned char)c] != 0)
+        || (c == '=')) 
+    {
+        return 1;
+    }
+    
+    return 0;
+}
+
 char *base64_encode(const unsigned char *data,
                     size_t input_length,
                     size_t *output_length) {
@@ -58,7 +68,6 @@ unsigned char *base64_decode(const char* data, size_t input_length, size_t* outp
     if (decoded_data == NULL) return NULL;
 
     for (int i = 0, j = 0; i < input_length;) {
-
         uint32_t sextet_a = (data[i] == '=' ? 0 & i++ : decoding_table[(unsigned char)data[i++]]);
         uint32_t sextet_b = (data[i] == '=' ? 0 & i++ : decoding_table[(unsigned char)data[i++]]);
         uint32_t sextet_c = (data[i] == '=' ? 0 & i++ : decoding_table[(unsigned char)data[i++]]);
@@ -80,9 +89,9 @@ unsigned char *base64_decode(const char* data, size_t input_length, size_t* outp
 
 void build_decoding_table() {
 
-    decoding_table = malloc(256);
+    decoding_table = calloc(256, sizeof(char));
 
-    for (int i = 0; i < 64; i++) 
+    for (int i = 0; i < 64; i++)
         decoding_table[(unsigned char) encoding_table[i]] = i;
 }
 
