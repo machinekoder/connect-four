@@ -49,7 +49,7 @@ void closeIrDA();
 void interface_init(char* identifier) {
     fdIrDA = -1;
     readBufferPos = 0;
-    snprintf(irdaName, FD_SIZE, "%s",identifier);
+    snprintf(irdaName, FD_SIZE, "/dev/%s",identifier);
 }
 
 void interface_cleanup() {
@@ -159,7 +159,7 @@ int writeMessage(MessageContainer* container, int fd)
 
     while (encodedLength > 0)
     {
-        sent = write(fd, encodedData, encodedLength);
+        sent = write(fd, encodedData++, encodedLength);
         if (sent == -1u)
         {
             ERROR("writing message failed");
