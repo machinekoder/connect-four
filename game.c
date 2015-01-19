@@ -154,10 +154,10 @@ char checkConnects()
 
     DEBUG(3, "check connects");
 
-    // vertical
+    // horizontal
     for (c = 0; c < FIELD_COLUMNS; ++c)
     {
-        for (r = 0; r < (FIELD_ROWS-4); ++r)
+        for (r = 0; r < (FIELD_ROWS-3); ++r)
         {
             matchChar = gameField[c][r];
             if (matchChar != ' ')
@@ -171,15 +171,15 @@ char checkConnects()
                 }
                 if (x == 4) // all matched
                 {
-                    DEBUG(3, "vertical match");
-                    return matchChar;
+                    DEBUG(3, "horizontal match");
+		    return matchChar;
                 }
             }
         }
     }
 
-    // horizontal
-    for (c = 0; c < (FIELD_COLUMNS-4); ++c)
+    // vertical
+    for (c = 0; c < (FIELD_COLUMNS-3); ++c)
     {
         for (r = 0; r < FIELD_ROWS; ++r)
         {
@@ -195,7 +195,7 @@ char checkConnects()
                 }
                 if (x == 4) // all matched
                 {
-                    DEBUG(3, "horizontal match");
+                    DEBUG(3, "vertical match");
                     return matchChar;
                 }
             }
@@ -203,9 +203,9 @@ char checkConnects()
     }
 
     // diagonal down
-    for (c = 0; c < (FIELD_COLUMNS-4); ++c)
+    for (c = 0; c < (FIELD_COLUMNS-3); ++c)
     {
-        for (r = 0; r < (FIELD_ROWS-4); ++r)
+        for (r = 0; r < (FIELD_ROWS-3); ++r)
         {
             matchChar = gameField[c][r];
             if (matchChar != ' ')
@@ -227,9 +227,9 @@ char checkConnects()
     }
 
     // diagonal up
-    for (c = 0; c < (FIELD_COLUMNS-4); ++c)
+    for (c = 0; c < (FIELD_COLUMNS-3); ++c)
     {
-        for (r = (FIELD_ROWS-4); r < FIELD_ROWS; ++r)
+        for (r = (FIELD_ROWS-3); r < FIELD_ROWS; ++r)
         {
             matchChar = gameField[c][r];
             if (matchChar != ' ')
